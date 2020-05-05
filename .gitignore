@@ -1,3 +1,9 @@
+# manually added mps 20200505
+*.m~
+.DS_Store
+.iohpid
+*.asc
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
