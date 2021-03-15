@@ -11,6 +11,7 @@ set VOLREG = 1
 set doFUGUE = 1
 set GE_TOPUP = 1
 set SE_TOPUP = 1
+set b0_AFNI = 1
 set GE_QWARP = 1
 set SE_QWARP = 1
 set doDice = 0
@@ -19,7 +20,7 @@ set yes = 1
 
 # this assumes you're sitting in a directory with all the files you need:
 set rawDir = {$subjDir}'/raw'
-set epi_forGE = 'oppPE_AP'
+set epi_forGE = 'AP_SE' # mps 20210217 -- make this the target scan
 set epi_forb0 = $epi_forGE # only 1 EPI scan
 set epi_forSE = $epi_forGE # only 1 EPI scan
 set epi = $epi_forGE
@@ -39,7 +40,7 @@ set scriptDir = '/*****PATH TO ANALYSIS DIRECTORY*****/'{$whichAnalysis}'/script
 
 # first pluck out 3 TRs of task scans, use closest to adjacent FM scans
 #3dTcat -overwrite -prefix {$rawDir}/{$epi}{$use_suffix}{$ext} {$rawDir}/{$epi}{$use_suffix}{$ext}'[0..2]'
-# mps 20201016 don't need to pluck out 3 TRs, since GE PA scan is only 3 TRs anyway
+# mps 20201016 don't need to pluck out 3 TRs, since SE PA scan is only 3 TRs anyway
 
 # take the median
 3dTstat -overwrite -median -prefix {$rawDir}/{$epi}{$use_suffix}{$ext} {$rawDir}/{$epi}{$use_suffix}{$ext}
@@ -49,7 +50,7 @@ set scriptDir = '/*****PATH TO ANALYSIS DIRECTORY*****/'{$whichAnalysis}'/script
 # mps 20201016 take out first 3 TRs of GE AP scan, to match what we did before
 3dTstat -overwrite -median -prefix {$rawDir}/{$GEfwd}{$use_suffix}{$ext} {$rawDir}/{$GEfwd}{$use_suffix}{$ext}
 # mps 20201013 replace GErev with GEfwd
-3dTstat -overwrite -median -prefix {$rawDir}/{$SEfwd}{$use_suffix}{$ext} {$rawDir}/{$SEfwd}{$use_suffix}{$ext}
+3dTstat -overwrite -median -prefix {$rawDir}/{$GErev}{$use_suffix}{$ext} {$rawDir}/{$GErev}{$use_suffix}{$ext}
 3dTstat -overwrite -median -prefix {$rawDir}/{$SErev}{$use_suffix}{$ext} {$rawDir}/{$SErev}{$use_suffix}{$ext}
 3dTstat -overwrite -median -prefix {$rawDir}/{$mag}{$use_suffix}{$ext} {$rawDir}/{$mag}{$use_suffix}{$ext}
 
@@ -68,7 +69,7 @@ if ( $gradUNWARP == $yes) then
   set old_suffix = $use_suffix
   set use_suffix = $use_suffix'_gu'
 
-  foreach scan ( $epi $GEfwd $SEfwd $SErev $mag $ph ) # mps 20201013 replace GErev with GEfwd
+  foreach scan ( $epi $GEfwd $GErev $SErev $mag $ph )   # mps 20210217 replace SE fwd with GE rev
     set inFile = {$rawDir}/{$scan}{$old_suffix}{$ext}
     set use_warp = {$rawDir}/fullWarp_rel.nii.gz
     3dNwarpApply                                     \
@@ -82,7 +83,7 @@ endif
 if ( $VOLREG == $yes ) then
   set old_suffix = $use_suffix
   set use_suffix = $use_suffix'_al'
-  foreach scan ( $epi $GEfwd $SEfwd $SErev ) # mps 20200102 adding all scans to test alignement theory, take out other GEs # mps 20201013 replace GErev with GEfwd
+  foreach scan ( $epi $GEfwd $GErev $SErev ) # mps 20200102 adding all scans to test alignement theory, take out other GEs # mps 20210217 replace SE fwd with GErev
     align_epi_anat.py                           \
       -overwrite                                \
       -rigid_body                               \
@@ -104,7 +105,7 @@ if ( $VOLREG == $yes ) then
 endif
 
 # now apply logic to resample in 1 step, if doing both gradunwarp and volreg
-foreach scan ( $epi $GEfwd $SEfwd $SErev $mag $ph ) # mps 20201013 replace GErev with GEfwd
+foreach scan ( $epi $GEfwd $GErev $SErev $mag $ph ) # mps 20210217 replace SE fwd with GE rev
   if ( $gradUNWARP == $yes ) then
     set warpList = {$rawDir}/fullWarp_rel.nii.gz 
   else
@@ -178,8 +179,8 @@ if ($doFUGUE == $yes) then
   3dMedianFilter -overwrite -prefix {$outDir}/ph_rad_per_sec_medfilt{$ext} \
     -irad 1 {$outDir}/ph_rad_per_sec{$ext}
   fugue -i {$rawDir}/$epi_forb0 --loadfmap={$outDir}/ph_rad_per_sec_medfilt{$ext} \
-    --dwell={$dwell} --unwarpdir=y- -u {$outDir}/epi_fugue
-    # mps 20201013 changing unwarpdir=y to =y-, because GE is PA not AP
+    --dwell={$dwell} --unwarpdir=y -u {$outDir}/epi_fugue
+
   cp {$outDir}/epi_fugue{$ext} {$subjDir}/.
 endif
 
@@ -210,9 +211,8 @@ if ($GE_TOPUP == $yes) then
   set topup_map = {$outDir}/topup_map
   topup --imain=$both_vol --datain=$topup_acq_params --config=b02b0.cnf \
     --out=$topup_map
-  applytopup --imain=$padded_epi --inindex=2 --datain=$topup_acq_params \
+  applytopup --imain=$padded_epi --inindex=1 --datain=$topup_acq_params \
     --method=jac --topup=$topup_map --out={$outDir}/padded_topped_up
-    # mps 20201013 changing inindex=1 to =2 because GE to correct is PA not AP
   3dZeropad -overwrite -prefix {$outDir}/epi_GE_topup{$ext} -S -1 \
     {$outDir}/padded_topped_up{$ext}
   cp {$outDir}/epi_GE_topup{$ext} {$subjDir}/.
@@ -245,9 +245,8 @@ if ($SE_TOPUP == $yes) then
   set topup_map = {$outDir}/topup_map
   topup --imain=$both_vol --datain=$topup_acq_params --config=b02b0.cnf \
     --out=$topup_map
-  applytopup --imain=$padded_epi --inindex=2 --datain=$topup_acq_params \
+  applytopup --imain=$padded_epi --inindex=1 --datain=$topup_acq_params \
     --method=jac --topup=$topup_map --out={$outDir}/padded_topped_up
-    # mps 20201013 changing inindex=1 to =2 because GE to correct is PA not AP
   3dZeropad -overwrite -prefix {$outDir}/epi_SE_topup{$ext} -S -1 \
     {$outDir}/padded_topped_up{$ext}
   cp {$outDir}/epi_SE_topup{$ext} {$subjDir}/.
@@ -282,10 +281,9 @@ if ($GE_QWARP == $yes) then
         -base   {$outDir}/fwd_masked.nii.gz                   \
         -prefix {$outDir}/blip_warp
 
-  3dNwarpApply -quintic -nwarp {$outDir}/blip_warp_Rev_WARP+orig      \
+  3dNwarpApply -quintic -nwarp {$outDir}/blip_warp_For_WARP+orig      \
              -source {$rawDir}/{$epi_forGE}{$ext}         \
              -prefix {$outDir}/epi_GE_qwarp{$ext}
-             # mps 20201013 changing blip_warp_For_WARP to Rev_WARP, because GE to correct is PA
   3drefit -atrcopy {$rawDir}/{$epi_forGE}{$ext} IJK_TO_DICOM_REAL      \
                  {$outDir}/epi_GE_qwarp{$ext}
   cp {$outDir}/epi_GE_qwarp{$ext} {$subjDir}/.
@@ -319,10 +317,9 @@ if ($SE_QWARP == $yes) then
         -base   {$outDir}/fwd_masked.nii.gz                   \
         -prefix {$outDir}/blip_warp
 
-  3dNwarpApply -quintic -nwarp {$outDir}/blip_warp_Rev_WARP+orig      \
+  3dNwarpApply -quintic -nwarp {$outDir}/blip_warp_For_WARP+orig      \
              -source {$rawDir}/{$epi_forSE}{$ext}         \
              -prefix {$outDir}/epi_SE_qwarp{$ext}
-             # mps 20201013 changing blip_warp_For_WARP to Rev_WARP, because GE to correct is PA
   3drefit -atrcopy {$rawDir}/{$epi_forSE}{$ext} IJK_TO_DICOM_REAL      \
                  {$outDir}/epi_SE_qwarp{$ext}
   cp {$outDir}/epi_SE_qwarp{$ext} {$subjDir}/.
@@ -332,12 +329,11 @@ endif
 set outName = 'input_series'
 3dTcat -overwrite -prefix {$subjDir}/{$outName}{$ext} \
   {$rawDir}/{$epi_forGE}{$ext}                        \
+  {$rawDir}/{$SErev}{$ext}                            \
   {$rawDir}/{$GEfwd}{$ext}                            \
+  {$rawDir}/{$GErev}{$ext}                            \
   {$rawDir}/{$epi_forb0}{$ext}                        \
   {$rawDir}/{$mag}{$ext}                              \
-  {$rawDir}/{$epi_forSE}{$ext}                        \
-  {$rawDir}/{$SEfwd}{$ext}                            \
-  {$rawDir}/{$SErev}{$ext}                            \
 
 set outName = 'output_series'
 3dTcat -overwrite -prefix {$subjDir}/{$outName}{$ext} \

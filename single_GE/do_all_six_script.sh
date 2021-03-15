@@ -11,7 +11,6 @@ set VOLREG = 1
 set doFUGUE = 1
 set GE_TOPUP = 1
 set SE_TOPUP = 1
-set b0_AFNI = 1
 set GE_QWARP = 1
 set SE_QWARP = 1
 set doDice = 0
@@ -334,7 +333,6 @@ set outName = 'output_series'
 3dTcat -overwrite -prefix {$subjDir}/{$outName}{$ext} \
   {$subjDir}/epi_uncorr{$ext}                         \
   {$subjDir}/epi_fugue{$ext}                          \
-  {$subjDir}/epi_b0_afni{$ext}                        \
   {$subjDir}/epi_GE_topup{$ext}                       \
   {$subjDir}/epi_SE_topup{$ext}                       \
   {$subjDir}/epi_GE_qwarp{$ext}                       \
