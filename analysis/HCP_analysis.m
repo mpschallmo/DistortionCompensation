@@ -1,11 +1,8 @@
-function results = dist_comp_analysis( options )
-% usage: results = dist_comp_analysis( options )
+function results = HCP_analysis( options )
+% usage: results = HCP_analysis( options )
 %
 % input: options = structure with fields:
 %   - subjDirs = cell array of strings, with subject IDs
-%   - scanSubDirs = cell array of strings, with scan ID letters
-%   - which_analysis = string, options are separate_GE = main analysis,
-%       single_GE = analysis #2, SBRef = analysis #3
 %   - topDir = string, path to top directory where analysis data live
 %   - displayFigs = binary, 1 = show figures, 0 = hide
 %   - which_error_bars = string, options are Morey (within-subjects error
@@ -16,17 +13,12 @@ function results = dist_comp_analysis( options )
 %       in which analysis data are stored, 1 = yes, 0 = no
 %   - show_anovas = binary, show figures for anovas, 1 = yes, 0 = no
 %   - gitDir = string, path to git repo
-%   - overwrite_roi = binary, 1 = yes, 0 = no
-%   - use_roi = binary, 1 = yes, 0 = no
-%   - which_roi = string, valid options are vmPFC and dmPFC
 %
 % output: results = structure with fields:
 %   - subj_number = numeric, subject ID #
 %   - anova = structure with results from anovas comparing results between
 %       conditions
 %   - ttest = structure with results from paired t-tests between conditions
-%   - linewidth = structure with summary data about the linewidth of water
-%       after shimming to minimize B0 inhomogeneity
 %   - save_FDR_p = cell array of matricies of FDR corrected p-values
 %   - dice = structure with Dice coefficent data
 %   - use_dice = matrix with Dice coefficient data
@@ -47,84 +39,34 @@ if ~exist('options','var')
     options = [];
 end
 if ~isfield(options,'subjDirs')
-    options.subjDirs = {'P6003691'
-        'P1010228'
-        'P6001501'
-        'P5104604'
-        'P6004604'
-        'P6004202'
-        'P1010299'
-        'P6004687'
-        'P1007451'
-        'P2104777'
-        'P6010671'
-        'P4100631'
-        'P2110465'
-        'P1010422'
-        'P6010465'
-        'P6004777'
-        'P1010407'
-        'P6010731'
-        'P6010363'
-        'P1006397'
-        'P4110363'
-        'P4104604'
-        'P3110692'
-        'P6010932'
-        'P3102476'
-        'P3111176'
-        'P1011139'
-        'P6004002'
-        'P1011033'
-        'P1010859'
-        'P1011399'};
-end
-if ~isfield(options,'scanSubDirs')
-    options.scanSubDirs = {'Z'
-        'B'
-        'B'
-        'B'
-        'Z'
-        'Z'
-        'B'
-        'B'
-        'B'
-        'B'
-        'B'
-        'B'
-        'B'
-        'B'
-        'Z'
-        'Z'
-        'B'
-        'Z'
-        'Z'
-        'B'
-        'B'
-        'B'
-        'B'
-        'B'
-        'B'
-        'B'
-        'B'
-        'Z'
-        'B'
-        'B'
-        'B'};
+    options.subjDirs = {'100610'
+        '102311'
+        '102816'
+        '104416'
+        '105923'
+        '108323'
+        '109123'
+        '111312'
+        '111514'
+        '114823'
+        '115017'
+        '115825'
+        '116726'
+        '118225'
+        '125525'
+        '126426'
+        '126931'
+        '128935'
+        '130114'
+        '130518'};
 end
 
-if ~isfield(options,'which_analysis')
-    options.which_analysis = 'separate_GE'; % separate_GE = main analysis,
-    % single_GE = analysis #2, SBRef = analysis #3, T2_ref = analysis #4,
-    % PA_GE = analysis #5, SE = analysis #7 (analysis #6, HCP, has its own
-    % analysis code called HCP_analysis.m)
-end
 if ~isfield(options,'topDir')
     options.topDir = input('Path to data directory: ','s');
 end
-if ~contains(options.topDir, options.which_analysis)
-    options.topDir = fullfile(options.topDir, options.which_analysis);
-    warning(['Assuming you want to include ' options.which_analysis ...
+if ~contains(options.topDir, 'HCP')
+    options.topDir = fullfile(options.topDir, 'HCP');
+    warning(['Assuming you want to include HCP' ...
         ' at the end of the data directory path: ' options.topDir]);
 end
 if ~isfield(options,'displayFigs')
@@ -155,61 +97,32 @@ if ~contains(options.gitDir(end-8:end), 'analysis')
 end
 addpath(genpath(options.gitDir));
 
-% mps 20201102
-if ~isfield(options, 'overwrite_roi')
-    options.overwrite_roi = 0;
-end
-if ~isfield(options, 'use_roi')
-    options.use_roi = 0;
-end
-if ~isfield(options, 'which_roi')
-    options.which_roi = 'vmPFC'; % valid options are vmPFC, dmPFC, posterior
-end
-
 results = [];
 
 %% get subject numbers
 results.subj_number = [];
 for iS = 1:numel(options.subjDirs)
-    results.subj_number(iS) = str2num(options.subjDirs{iS}(2:end));
+    results.subj_number(iS) = str2num(options.subjDirs{iS});
 end
 
 %% load data
-analyses = {'GE_qwarp', 'GE_topup', 'fugue','SE_qwarp', ...
-    'SE_topup', 'uncorr', '12param'};
-analy_names = {'GE_qwarp', 'GE_topup', 'fugue','SE_qwarp', ...
-    'SE_topup', 'uncorr', 'param12'};
-legend_names = {'GE 3dQwarp', 'GE topup', 'fugue','SE 3dQwarp', ...
-    'SE topup', '6 param.', '12 param.'};
+analyses = {'SE_qwarp','SE_topup','uncorr', '12param'};
+analy_names = {'SE_qwarp', 'SE_topup', 'uncorr', 'param12'};
+legend_names = {'SE 3dQwarp', 'SE topup', '6 param.', ...
+    '12 param.'};
 
-use_symb = {'s','^','^','s','^','o','o'};
-use_color = {'r','r',[0 0.75 0],'b','b','k','k'};
-use_fill = {'r','r',[0 0.75 0],'b','b','w',[0.5 0.5 0.5]};
-quant_names = {'mask','GMWM','mut_info'};
-if strcmp(options.which_analysis, 'T2_ref')
-    plot_q_names = {'Dice: whole-brain masks','Dice: CSF-excluded masks',...
-        'Mutual info.: masked EPI & T2 data'};
-else
-    plot_q_names = {'Dice: whole-brain masks','Dice: CSF-excluded masks',...
-        'Mutual info.: masked EPI & T1 data'};
-end
-if options.use_roi
-    plot_q_names{1} = [options.which_roi ' mask'];
-end
+use_symb = {'s','^','o','o'};
+use_color = {'b','b','k','k'};
+use_fill = {'b','b','w',[0.5 0.5 0.5]};
+quant_names = {'mask','mut_info'};
+plot_q_names = {'Dice: whole-brain masks','Mutual info.: masked EPI & T1 data'};
 
 nSubj = numel(options.subjDirs);
 for iA = 1:numel(analyses)
     dice.(analy_names{iA}).mask = nan(nSubj,1);
-    dice.(analy_names{iA}).GMWM = nan(nSubj,1);
 end
 
-if strcmp(options.which_analysis,'SBRef')
-    add_epi_name = '_SBRef';
-else
-    add_epi_name = '';
-end
-
-h_wait = waitbar(0, 'loading data, please wait...');
+h_wait = waitbar(0, 'loading FMSD data, please wait...');
 
 data_file = fullfile(options.topDir, 'dist_comp_data.mat');
 
@@ -218,66 +131,55 @@ if exist(data_file,'file') % mps 20201102
     data = get_data.data;
 end
 
-if options.overwrite_data_file || ~exist(data_file,'file')  || ....
-        (options.use_roi && ~isfield(data.roi,options.which_roi)) % mps 20201102 make this run if ROI field is missing
-    
+if options.overwrite_data_file || ~exist(data_file,'file')    
     % mps 20201102 make this a structure...
     data.dice = nan(nSubj,numel(analyses),numel(fieldnames(dice.(analy_names{1}))) );
-    data.minfo = nan(nSubj,numel(analyses));
-    data.nminfo = nan(nSubj,numel(analyses));
-    data.roi.(options.which_roi).dice = nan(nSubj,numel(analyses),...
-        numel(fieldnames(dice.(analy_names{1}))) ); % mps 20201023
-    data.roi.(options.which_roi).minfo = nan(nSubj,numel(analyses)); % mps 20201023
-    
+    data.minfo = nan(nSubj,numel(analyses));    
     
     for iS = 1:nSubj
-        subjDir = fullfile(options.topDir,options.subjDirs{iS},options.scanSubDirs{iS});
-        % n.b. assumes this directory structure, set by do_one_scan.sh
-        fID = fopen(fullfile(subjDir,'DICE.txt'),'r');
-        all_txt = textscan(fID,'%s','Delimiter','\n');
-        fclose(fID);
+        subjDir = fullfile(options.topDir,options.subjDirs{iS},'proc');
+        % n.b. assumes this directory structure, set by align_data.sh
+        
         for iA = 1:numel(analyses)
-            % load Dice data
-            match_all = strfind(all_txt{1},[analyses{iA} ':']);
-            clear idx
-            for iM = 1:numel(match_all)
-                if match_all{iM} == 1
-                    idx = iM;
-                end
+            % get Dice data
+            
+            anat_mask = fullfile(subjDir,analyses{iA},['T1_' analyses{iA} ...
+                '_mask.nii.gz']);
+            if ~exist(anat_mask,'file')
+                error(['Can''t find file: ' anat_mask]);
             end
-            dice.(analy_names{iA}).mask(iS) = str2num(all_txt{1}{idx+1});
-            dice.(analy_names{iA}).GMWM(iS) = str2num(all_txt{1}{idx+2});
+            epi_mask = fullfile(subjDir,analyses{iA},['epi_' analyses{iA} ...
+                '_mask.nii.gz']);
+            if ~exist(epi_mask,'file')
+                error(['Can''t find file: ' epi_mask]);
+            end
             
-            data.dice(:,iA,1) = dice.(analy_names{iA}).mask;
-            data.dice(:,iA,2) = dice.(analy_names{iA}).GMWM; % mps 20201102
+            [~, result] = system(['3ddot -dodice ' anat_mask ' '...
+                epi_mask]);
             
-            anat_3T_file = fullfile(subjDir, analyses{iA}, ...
-                '3T_anat_uni_al_EPI.nii.gz');
+            num_idx = strfind(result,'0.');
+            result = result(num_idx(end):end); % cut out warning message
+            
+            data.dice(iS,iA,1) = str2num(result);
+            
+            dice.(analy_names{iA}).mask(iS) = data.dice(iS,iA,1);
+                        
+            anat_3T_file = fullfile(subjDir,analyses{iA},['T1_' analyses{iA} ...
+                '.nii.gz']);
             if ~exist(anat_3T_file,'file')
                 error(['Can''t find file: ' anat_3T_file]);
             end
-            epi_7T_file = fullfile(subjDir, analyses{iA}, ['epi_' ...
-                analyses{iA} add_epi_name '_uni.nii.gz']);
+            epi_7T_file = fullfile(subjDir,analyses{iA},['epi_' analyses{iA} ...
+                '.nii.gz']);
             if ~exist(epi_7T_file,'file')
                 error(['Can''t find file: ' epi_7T_file]);
-            end
-            
-            anat_3T_mask_file = fullfile(subjDir, analyses{iA}, ...
-                '3T_anat_uni_al_EPI_mask.nii.gz');
-            if ~exist(anat_3T_mask_file,'file')
-                error(['Can''t find file: ' anat_3T_mask_file]);
-            end
-            epi_7T_mask_file = fullfile(subjDir, analyses{iA}, ['epi_' ...
-                analyses{iA} add_epi_name '_mask.nii.gz']);
-            if ~exist(epi_7T_mask_file,'file')
-                error(['Can''t find file: ' epi_7T_mask_file]);
             end
             
             anat_3T_data = round(double(niftiread(anat_3T_file)));
             epi_7T_data = round(double(niftiread(epi_7T_file)));
             
-            anat_3T_mask = round(double(niftiread(anat_3T_mask_file)));
-            epi_7T_mask = round(double(niftiread(epi_7T_mask_file)));
+            anat_3T_mask = round(double(niftiread(anat_mask)));
+            epi_7T_mask = round(double(niftiread(epi_mask)));
             
             % mask mutual info, brain only
             anat_3T_data = anat_3T_data .* anat_3T_mask;
@@ -285,72 +187,7 @@ if options.overwrite_data_file || ~exist(data_file,'file')  || ....
             
             data.minfo(iS,iA) = mutInfo(...
                 anat_3T_data(:), epi_7T_data(:));
-            
-            if options.use_roi
                 
-                % add ROI analysis mps 20201023
-                ROI_mask = fullfile(options.gitDir, ...
-                    [options.which_roi '_ROI_mask.nii.gz']);
-                if ~exist(ROI_mask,'file')
-                    error(['can''t find ROI mask file: ' ROI_mask]);
-                end
-                
-                % first do tissue masks
-                for iMask = 1:size(data.roi.(options.which_roi).dice,3)
-                    if iMask == 1
-                        use_anat = fullfile(subjDir, analyses{iA}, ['3T_anat_uni_al_EPI_mask.nii.gz']);
-                    else
-                        use_anat = fullfile(subjDir, analyses{iA}, ['wmparc_' ...
-                            analyses{iA} add_epi_name '_' lower(quant_names{iMask}) ...
-                            '.nii.gz']);
-                    end
-                    anat_roi = [use_anat(1:end-7) '_' options.which_roi ...
-                        '_roi.nii.gz'];
-                    if ~exist(anat_roi,'file') || options.overwrite_roi
-                        eval(['! 3dcalc -overwrite -prefix ' anat_roi ' -a '...
-                            use_anat ' -b ' ROI_mask ' -expr ''a*b''']);
-                    end
-                    
-                    use_epi = fullfile(subjDir, analyses{iA}, ['epi_' ...
-                        analyses{iA} add_epi_name '_' lower(quant_names{iMask}) ...
-                        '.nii.gz']);
-                    epi_roi = [use_epi(1:end-7) '_' options.which_roi ...
-                        '_roi.nii.gz'];
-                    if ~exist(epi_roi,'file') || options.overwrite_roi
-                        eval(['! 3dcalc -overwrite -prefix ' epi_roi ' -a '...
-                            use_epi ' -b ' ROI_mask ' -expr ''a*b''']);
-                    end
-                    
-                    [~, result] = system(['3ddot -dodice ' anat_roi ' '...
-                        epi_roi]);
-                    data.roi.(options.which_roi).dice(iS,iA,iMask) = ...
-                        str2num(result);
-                end
-                
-                % now do mutual info for actual brain images inside masks
-                use_anat = anat_3T_file;
-                anat_roi = [use_anat(1:end-7) '_' options.which_roi ...
-                    '_roi.nii.gz'];
-                if ~exist(anat_roi,'file') || options.overwrite_roi
-                    eval(['! 3dcalc -overwrite -prefix ' anat_roi ' -a '...
-                        use_anat ' -b ' ROI_mask ' -expr ''a*b''']);
-                end
-                
-                use_epi = epi_7T_file;
-                epi_roi = [use_epi(1:end-7) '_' options.which_roi ...
-                    '_roi.nii.gz'];
-                if ~exist(epi_roi,'file') || options.overwrite_roi
-                    eval(['! 3dcalc -overwrite -prefix ' epi_roi ' -a '...
-                        use_epi ' -b ' ROI_mask ' -expr ''a*b''']);
-                end
-                
-                anat_3T_roi_data = round(double(niftiread(anat_roi)));
-                epi_7T_roi_data = round(double(niftiread(epi_roi)));
-                
-                data.roi.(options.which_roi).minfo(iS,iA) = mutInfo(...
-                    anat_3T_roi_data(:), epi_7T_roi_data(:));
-                
-            end
         end
         waitbar(iS/nSubj, h_wait);
     end
@@ -359,13 +196,8 @@ if options.overwrite_data_file || ~exist(data_file,'file')  || ....
 end
 close(h_wait);
 
-if options.use_roi % mps 20201102
-    use_minfo = data.roi.(options.which_roi).minfo;
-    use_dice = data.roi.(options.which_roi).dice;
-else
-    use_minfo = data.minfo;
-    use_dice = data.dice;
-end
+use_minfo = data.minfo;
+use_dice = data.dice;
 
 %% run some stats
 if options.show_anovas
@@ -376,17 +208,18 @@ end
 
 save_FDR_p = [];
 
-cond_idx = [1 2 3]; % mask, GMWM, mututal info
+cond_idx = [1 2]; % mask, mututal info
 
 % first do an anova for each tissue type, all conditions
 for use_idx = cond_idx
-    if use_idx < 3
+    if use_idx < 2
         all_data = use_dice(:,:,use_idx);
-    elseif use_idx == 3
+    elseif use_idx == 2
         all_data = use_minfo;
     else
         error(['unknown value of use_idx = ' num2str(use_idx) ])
     end
+    
     all_subj = repmat([1:size(all_data,1)]',[1 size(all_data,2)]);
     all_cond = repmat([1:size(all_data,2)],[size(all_data,1) 1]);
     
@@ -427,15 +260,13 @@ end
 
 %% display figs
 subplot_vals = {[0.10 0.71 0.88 0.25],...
-    [0.10 0.38 0.88 0.25],...
-    [0.10 0.05 0.88 0.25]}; % used to set size of plot regions
+    [0.10 0.38 0.88 0.25]}; % used to set size of plot regions
 
 subplot_vals2 = {[0.09 0.57 0.39 0.38],...
-    [0.59 0.57 0.39 0.38],...
-    [0.09 0.06 0.39 0.38]};
+    [0.59 0.57 0.39 0.38]};
 
-use_x_labels = {'GE oppPE','B0 FM','SE oppPE','Align only'};
-use_x_tick = [1.5 3 4.5 6.5];
+use_x_labels = {'SE oppPE','Align only'};
+use_x_tick = [1.5 3.5];
 use_mk_size = 10;
 use_lw = 1;
 use_patch_pct_y = 0.05;
@@ -453,7 +284,7 @@ if options.displayFigs
         plot([0 0],[0 0],'b-','linewidth',use_lw)
         plot([0 0],[0 0],'k--','linewidth',use_lw)
         
-        if iM < 3
+        if iM < 2
             plot_me = squeeze(use_dice(:,:,iM));
         else
             plot_me = use_minfo;
@@ -469,7 +300,7 @@ if options.displayFigs
         
         for iA = 1:numel(analyses)
             figure(h1)
-            if iM < 3
+            if iM < 2
                 mask_data = use_dice(:,iA,iM);
             else
                 mask_data = use_minfo(:,iA);
@@ -487,7 +318,7 @@ if options.displayFigs
         set(gca,'XTick',use_x_tick,'XTickLabel',use_x_labels,...
             'fontsize',18,'XColor','k','YColor','k')
         set(gcf,'color','w')
-        if iM < 3
+        if iM < 2
             ylabel('Dice coeff.','color','k')
         else
             ylabel('Mutual info.','color','k')
@@ -511,15 +342,19 @@ if options.displayFigs
             % means + error bars
             
             if strcmp(lower(options.which_error_bars),'sem') % show SEM error bars
-                if iM < 3
+                if iM < 2
                     use_data = use_dice(:,:,iM);
                     plot_me = use_dice(:,iA,iM);
                 else
                     use_data = use_minfo;
-                    plot_me = use_minfo(:,iA);
+                    if iA == 1 % for plotting mut info 
+                        plot_me = use_minfo(:,iA);
+                    else
+                        plot_me = use_minfo(:,iA);
+                    end
                 end
             else strcmp(lower(options.which_error_bars),'morey') % show morey within-subj error bars
-                if iM < 3
+                if iM < 2
                     use_data = use_dice(:,:,iM) - ...
                         repmat(nanmean(use_dice(:,:,iM),2),[1 size(use_dice,2)]) + ...
                         repmat(nanmean(nanmean(use_dice(:,:,iM),2),1), ...
@@ -529,13 +364,17 @@ if options.displayFigs
                     use_data = use_minfo - repmat(nanmean(use_minfo,2),...
                         [1 size(use_minfo,2)]) + repmat(nanmean(nanmean(...
                         use_minfo,2),1), size(use_minfo));
-                    plot_me = use_data(:,iA);
+                    if iA == 1 % for plotting mut info
+                        plot_me = use_data(:,iA);
+                    else
+                        plot_me = use_data(:,iA);
+                    end
                 end
             end
             
             figure(h2)
             subplot('position',subplot_vals2{iM}); hold on
-            if iM == 3 && iA == 1
+            if iM == 2 && iA == 1
                 for iS = 1:numel(use_symb)
                     plot(-1,-1,'Marker',use_symb{iS},'color',use_color{iS},...
                         'MarkerFaceColor',use_fill{iS},'MarkerSize',use_mk_size,...
@@ -562,27 +401,18 @@ if options.displayFigs
                 'XColor','k','YColor','k','fontsize',18)
             title(plot_q_names{iM})
             if iA == numel(analyses)
-                if iM < 3
+                if iM < 2
                     y_min = min(nanmean(use_dice(:,:,iM),1));
                     y_max = max(nanmean(use_dice(:,:,iM),1));
                     ylabel('Overlap (Dice coeff.)','color','k');
+                    y_range = y_max - y_min;
                 else
                     y_min = min(nanmean(use_minfo,1));
                     y_max = max(nanmean(use_minfo,1));
                     ylabel('Mutual info. (bits)','color','k');
+                    y_range = (y_max - y_min);
                 end
-                
-                y_range = y_max - y_min;
-                
-                if options.use_roi
-                    if iM == 3 && strcmp(options.which_roi, 'vmPFC')
-                        y_range = y_range * 10; % hard code some scaling
-                    elseif strcmp(options.which_roi, 'dmPFC') || ...
-                            strcmp(options.which_roi, 'posterior') % mps 20210129
-                        y_range = y_range * 1.5;
-                    end
-                end
-                
+                                
                 axis([0.5 numel(analyses)+0.5 ...
                     y_min-0.1*y_range y_max+0.1*y_range ]);
                 
@@ -595,7 +425,7 @@ if options.displayFigs
                 
                 set(gcf,'color','w')
                 
-                if iM == 3
+                if iM == 2             
                     h_leg = legend(legend_names);
                     set(h_leg,'TextColor','k','FontSize',18);
                 end
@@ -606,14 +436,6 @@ if options.displayFigs
     end
     
 end
-
-%% figure out linewidth
-load_lw = load(fullfile(options.gitDir, 'linewidth.mat'));
-
-results.linewidth.all = load_lw.linewidth.value;
-
-results.linewidth.mean = nanmean(results.linewidth.all);
-results.linewidth.sd = nanstd(results.linewidth.all);
 
 %% results
 results.save_FDR_p = save_FDR_p;

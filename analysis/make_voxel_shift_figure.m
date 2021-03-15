@@ -30,6 +30,8 @@ if ~isfield(options,'axial_slice_of_interest')
         options.axial_slice_of_interest = 22; % 22 for vmPFC, 46 for dmPFC
     elseif strcmp(options.ROI,'dmPFC')
         options.axial_slice_of_interest = 46; % 22 for vmPFC, 46 for dmPFC
+    elseif strcmp(options.ROI,'posterior')
+        options.axial_slice_of_interest = 38; % mps 20210125
     end
 end
 if ~isfield(options,'img_scale')
@@ -67,6 +69,10 @@ B0_file = 'ph_rad_per_sec_medfilt.nii.gz';
 all_files.GE = fullfile(GE_dir, qwarp_file);
 all_files.SE = fullfile(SE_dir, qwarp_file);
 all_files.B0 = fullfile(B0_dir, B0_file);
+
+all_files.GE_T1_mask = fullfile(GE_dir, '3T_anat_uni_al_EPI_mask.nii.gz'); % mps 20200125
+all_files.SE_T1_mask = fullfile(SE_dir, '3T_anat_uni_al_EPI_mask.nii.gz');
+all_files.B0_T1_mask = fullfile(B0_dir, '3T_anat_uni_al_EPI_mask.nii.gz');
 
 PE_dimension = 2;
 
@@ -199,6 +205,95 @@ for iImg = 1:numel(data_types)
         xlabel('Voxel shift (A-P)','color','k')
         axis([min_line-2 max_line+2 1 max_dim(2)]);
     end
+    
+%% voxel shift histograms - mps 20210125
+
+    T1_file = all_files.([data_types{iImg} '_T1_mask']);
+    load_T1_mask = double(niftiread(T1_file));
+        
+    hist_data = load_T1_mask;
+    
+    hist_data( hist_data == 0 ) = NaN; % remove data outside mask
+    
+    hist_data = img_data .* hist_data; % mask the voxel map data
+    
+    
+    % first show whole brain results
+    if iImg == 1
+        h_hist = figure;
+        set(gcf,'color','w','POS',[5 300 330 665],'renderer','painters')
+    else
+        figure(h_hist)
+    end
+    subplot(3,1,iImg)
+    hold on
+    
+    bin_width = 1;
+    histogram(hist_data(:),'BinWidth',bin_width,...
+        'FaceColor','b','EdgeColor','none');
+    
+    ax = axis;
+    axis([-10 15 0 110000]);
+
+    set(gca,'fontsize',18,'XColor','k','YColor','k')
+    if iImg == 1
+        ylabel('# voxels, x 10^3','color','k')
+        title(['Whole brain ' data_types{iImg} add_title{iImg}],'color','k');
+    else
+            title([data_types{iImg} add_title{iImg}],'color','k');
+    end
+    xlabel('Voxel shift (A-P)','color','k');
+    set(gca,'YTick',0:50000:200000,'YTickLabel',0:50:200)
+    
+    
+    % then show ROI results
+    hist_data = load_T1_mask .* ROI_data;
+    
+    hist_data( hist_data == 0 ) = NaN;
+    
+    hist_data = img_data .* hist_data;
+    
+    if iImg == 1
+        h_hist_r = figure;
+        set(gcf,'color','w','POS',[5 300 330 665],'renderer','painters')
+    else
+        figure(h_hist_r)
+    end
+    subplot(3,1,iImg)
+    hold on
+    
+    if strcmp(options.ROI, 'vmPFC')
+        bin_width = 1;
+    elseif strcmp(options.ROI, 'dmPFC') || strcmp(options.ROI, 'posterior')
+        bin_width = 0.5;
+    end
+    histogram(hist_data(:),'BinWidth',bin_width,...
+        'FaceColor','b','EdgeColor','none');
+    
+    ax = axis;
+    if strcmp(options.ROI, 'vmPFC')
+        axis([-2 20 0 3500]);
+        set(gca,'YTick',0:1000:200000)
+        add_y_label = '';
+    elseif strcmp(options.ROI, 'dmPFC')
+        axis([-5 5 0 1250]);
+        set(gca,'YTick',0:500:200000)
+        add_y_label = '';
+    elseif strcmp(options.ROI, 'posterior')
+        axis([-5 5 0 15000]);
+        set(gca,'YTick',0:5000:200000,'YTickLabel',0:5:200)
+        add_y_label = ', x 10^3';
+    end
+
+    set(gca,'fontsize',18,'XColor','k','YColor','k')
+    if iImg == 1
+        ylabel(['# voxels' add_y_label],'color','k')
+        title([options.ROI ' ' data_types{iImg} add_title{iImg}],'color','k');
+    else
+        title([data_types{iImg} add_title{iImg}],'color','k');
+    end
+    xlabel('Voxel shift (A-P)','color','k');
+
 
 end
 
