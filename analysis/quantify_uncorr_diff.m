@@ -1,15 +1,21 @@
-function output = quantify_PA_diff( options )
-% usage: output = quantify_PA_diff( options )
+function output = quantify_uncorr_diff( options )
+% usage: output = quantify_uncorr_diff( options )
 %
 % mps 20210308
+
 %% check matlab version
 if datenum(version('-date')) < datenum('September 14, 2017')
     error(['This code relies on new functionality of niftiread.m, and will NOT function with versions '...
         'of Matlab older than 2017b'])
 end
+
 %% opt
 if ~exist('options','var')
     options = [];
+end
+if ~isfield(options,'region')
+    options.region = 'whole_brain';
+    % valid options are: 'whole_brain', 'vmPFC', 'dmPFC', 'posterior'
 end
 if ~isfield(options,'subjDirs')
     options.subjDirs = {'P6003691'
@@ -116,45 +122,36 @@ end
 %% load data
 nSubj = numel(options.subjDirs);
 
-analyses = {'GE_qwarp', 'GE_topup', 'fugue','SE_qwarp', ...
-    'SE_topup', 'uncorr'};
+analyses = {'GE_qwarp', 'GE_topup', 'fugue', 'SE_qwarp', ...
+    'SE_topup'};
 
-if strcmp(options.topDir(end-8:end),'single_GE')
-    options.topDir = options.topDir(1:end-9);
-    warning('assuming you don''t want to double-include single_GE in the directory path');
-elseif strcmp(options.topDir(end-4:end),'PA_GE')
-    options.topDir = options.topDir(1:end-5);
-    warning('assuming you don''t want to double-include PA_GE in the directory path');
-end
-
-AP_dir = fullfile(options.topDir, 'single_GE');
-PA_dir = fullfile(options.topDir, 'PA_GE');
+data_dir = fullfile(options.topDir, 'single_GE');
 
 h_wait = waitbar(0, 'loading data, please wait...');
 
 for iS = 1:numel(options.subjDirs)
     for iA = 1:numel(analyses)
-        sub_A_dir = fullfile(AP_dir, options.subjDirs{iS}, options.scanSubDirs{iS}, ...
-            analyses{iA});
-        sub_P_dir = fullfile(PA_dir, options.subjDirs{iS}, options.scanSubDirs{iS}, ...
+        sub_uncorr_dir = fullfile(data_dir, options.subjDirs{iS}, options.scanSubDirs{iS}, ...
+            'uncorr');
+        sub_corr_dir = fullfile(data_dir, options.subjDirs{iS}, options.scanSubDirs{iS}, ...
             analyses{iA});
         
-        diff_file = fullfile(sub_P_dir, 'AP_min_PA.nii.gz');
+        diff_file = fullfile(sub_corr_dir, 'uncorr_min_corr.nii.gz');
         if ~exist(diff_file,'file')
             cmd = ['3dcalc -overwrite -prefix ' diff_file ' -a "' fullfile(...
-                sub_A_dir, ['epi_' analyses{iA} '.nii.gz']) '" -b "' ...
-                fullfile(sub_P_dir, ['epi_' analyses{iA} '.nii.gz']) ...
+                sub_uncorr_dir, ['epi_uncorr.nii.gz']) '" -b "' ...
+                fullfile(sub_corr_dir, ['epi_' analyses{iA} '.nii.gz']) ...
                 '" -expr "a-b"'];
             [~, result] = system(cmd);
         end
         
         load_data = round(double(niftiread(diff_file)));
         
-        mask_file = fullfile(sub_P_dir, 'AP_plus_PA_mask.nii.gz');
+        mask_file = fullfile(sub_corr_dir, 'uncorr_plus_corr_mask.nii.gz');
         if ~exist(mask_file,'file')
             cmd = ['3dcalc -overwrite -prefix ' mask_file ' -a "' fullfile(...
-                sub_A_dir, ['epi_' analyses{iA} '_mask.nii.gz']) '" -b "' ...
-                fullfile(sub_P_dir, ['epi_' analyses{iA} '_mask.nii.gz']) ...
+                sub_uncorr_dir, ['epi_uncorr_mask.nii.gz']) '" -b "' ...
+                fullfile(sub_corr_dir, ['epi_' analyses{iA} '_mask.nii.gz']) ...
                 '" -expr "step(a+b)"'];
             [~, result] = system(cmd);
         end
@@ -215,18 +212,18 @@ for iP = 1:numel(FDR_p)
 end
 
 %% plot data
-use_symb = {'s','^','^','s','^','o'};
-use_color = {'r','r',[0 0.75 0],'b','b','k'};
-use_fill = {'r','r',[0 0.75 0],'b','b','w'};
+use_symb = {'s','^','^','s','^'};
+use_color = {'r','r',[0 0.75 0],'b','b'};
+use_fill = {'r','r',[0 0.75 0],'b','b'};
 use_mk_size = 10;
 use_lw = 1;
 use_patch_pct_y = 0.05;
 use_patch_pct_x = 0.01;
 use_x_tick = [1.5 3 4.5 6];
-use_x_labels = {'GE oppPE','B0 FM','SE oppPE','Align only'};
+use_x_labels = {'GE oppPE','B0 FM','SE oppPE'};
 
-legend_names = {'GE 3dQwarp', 'GE topup', 'fugue','SE 3dQwarp', ...
-    'SE topup', '6 param.'};
+legend_names = {'GE 3dQwarp', 'GE topup', 'fugue', 'SE 3dQwarp', ...
+    'SE topup'};
 
 figure
 hold on
@@ -273,7 +270,7 @@ end
 y_min = min(nanmean(sub_data,1));
 y_max = max(nanmean(sub_data,1));
 y_range = y_max - y_min;
-ylabel('Median abs. signal diff. (AP-PA)','color','k');
+ylabel('Median abs. signal diff. (uncorr. - corr.)','color','k');
 set(gca,'XTick',use_x_tick,'XTickLabel',use_x_labels,...
     'XColor','k','YColor','k','fontsize',18)
 
