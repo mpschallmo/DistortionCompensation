@@ -51,6 +51,14 @@ Credit for these functions goes to their original authors (not us).
     Analysis #5: posterior-anterior PE data
     Analysis #6: Young Adult HCP data
     Analysis #7: correcting SE data
+    
+2020.05.24: Added / updated the following:
+    quantify_uncorr_diff.m
+    make_uncor_sub_corr_figure.m
+    quantify_PA_diff.m
+	quantify_head_motion_corr.m
+	align_one.sh
+	segment_one.sh
 
 This code is made available under the following license:
 Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)
