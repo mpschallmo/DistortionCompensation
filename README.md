@@ -7,7 +7,7 @@ Code authors: Michael-Paul Schallmo and Cheryl A. Olman
 - Requires MATLAB, AFNI, FSL, Python, gradunwarp, and FreeSurfer (as implemented in the HCP Workbench)
 - And requires the following MATLAB toolboxes: Image Processing Toolbox, Statistics and Machine Learning Toolbox
 - Also requires the following python modules: os, nibabel, numpy, subprocess
-- Shell scripts written for and run in tcsh
+- Shell scripts written for and run in tcsh (t-shell)
 - Tested using MATLAB version R2017b, AFNI version 18.2.04, FSL version 5.0.9, Python version 2.7, gradunwarp version 1.0.3, FreeSurfer version 5.3 (HCP workbench version 3.22.0), all run on Linux Red Hat version 6.10
 
 2. Installation guide
@@ -44,6 +44,13 @@ This code uses the following publicly available MATLAB functions (included in th
 plotSpread - mathworks.com/matlabcentral/fileexchange/37105-plot-spread-points-beeswarm-plot
 mutInfo - mathworks.com/matlabcentral/fileexchange/35625-information-theory-toolbox
 Credit for these functions goes to their original authors (not us).
+
+5. Updates
+2020.03.15: Added code for the following supplemental analyses (plus minor bug fixes):
+    Analysis #4: T2 reference anatomy
+    Analysis #5: posterior-anterior PE data
+    Analysis #6: Young Adult HCP data
+    Analysis #7: correcting SE data
 
 This code is made available under the following license:
 Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)
